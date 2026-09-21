@@ -7,7 +7,7 @@ from contextlib import contextmanager
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
+from rich.prompt import Prompt
 
 console = Console()
 
@@ -51,9 +51,11 @@ class UI:
         console.print(Panel(question, title="Агент спрашивает", border_style="yellow"))
         return Prompt.ask("[yellow]Ваш ответ[/yellow]")
 
-    def confirm(self, summary: str) -> bool:
+    def confirm(self, summary: str):
         console.print(Panel(summary, title="⚠ Необратимое действие", border_style="red"))
-        return Confirm.ask("[red]Разрешить?[/red]", default=False)
+        answer = Prompt.ask("[red]Разрешить?[/red] y — да, a — да для всей задачи, n — нет",
+                            choices=["y", "a", "n"], default="n")
+        return "all" if answer == "a" else answer == "y"
 
     def error(self, text: str) -> None:
         console.print(f"[bold red]{text}[/bold red]")

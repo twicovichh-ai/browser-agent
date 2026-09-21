@@ -51,7 +51,7 @@
   .card.report { border-color: var(--ok); white-space: pre-wrap; }
   .card .title { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
   .card.ask .title { color: var(--warn); } .card.confirm .title { color: var(--bad); } .card.report .title { color: var(--ok); }
-  .card .row { display: flex; gap: 6px; margin-top: 8px; }
+  .card .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .card.done { opacity: .55; }
   .card.done .row { display: none; }
   .usage { color: var(--muted); font: 11px ui-monospace, Menlo, monospace; white-space: pre-wrap; margin-top: 6px; }
@@ -189,10 +189,12 @@ const handlers = {
   confirm(ev) {
     const c = card("confirm", "⚠ Необратимое действие", ev.summary);
     const row = el("div", "row");
-    const yes = el("button", "danger", "Разрешить"), no = el("button", "secondary", "Отклонить");
+    const yes = el("button", "danger", "Разрешить"), all = el("button", "secondary", "Разрешить всё в этой задаче"),
+          no = el("button", "secondary", "Отклонить");
     yes.onclick = () => send({ type: "confirm", id: ev.id, ok: true });
+    all.onclick = () => send({ type: "confirm", id: ev.id, ok: "all" });
     no.onclick = () => send({ type: "confirm", id: ev.id, ok: false });
-    row.appendChild(yes); row.appendChild(no);
+    row.appendChild(yes); row.appendChild(all); row.appendChild(no);
     c.appendChild(row); cards.set(ev.id, c); add(c);
   },
   resolved(ev) { const c = cards.get(ev.id); if (c) c.classList.add("done"); },

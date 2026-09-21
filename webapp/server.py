@@ -142,7 +142,8 @@ async def ws_endpoint(ws: WebSocket) -> None:
             elif kind == "answer":
                 worker.ui.reply(int(msg["id"]), str(msg.get("text", ""))[:2000])
             elif kind == "confirm":
-                worker.ui.reply(int(msg["id"]), bool(msg.get("ok")))
+                ok = msg.get("ok")
+                worker.ui.reply(int(msg["id"]), "all" if ok == "all" else bool(ok))
             elif kind == "stop":
                 worker.stop_task()
             elif kind == "input" and msg.get("kind") in {"click", "wheel", "text", "key"}:

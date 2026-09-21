@@ -78,8 +78,9 @@ class WebUI:
     def ask(self, question: str) -> str:
         return self._wait("ask", question=question) or "(пользователь не ответил)"
 
-    def confirm(self, summary: str) -> bool:
-        return bool(self._wait("confirm", summary=summary))
+    def confirm(self, summary: str):
+        answer = self._wait("confirm", summary=summary)
+        return "all" if answer == "all" else bool(answer)
 
     def error(self, text: str) -> None:
         self.emit({"type": "error", "text": text})

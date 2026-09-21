@@ -11,6 +11,7 @@ Design rules (see README):
 from __future__ import annotations
 
 import base64
+import os
 from typing import Callable
 
 from . import llm
@@ -105,6 +106,11 @@ TOOLS: list[dict] = [
 
 GUARDED = {"click", "type", "press_key"}  # actions that can trigger something irreversible
 
+# ask  — confirm every irreversible action
+# task — ask once; "approve all" silences it until the end of the task (default: safe, not annoying)
+# off  — never ask, no guard calls at all
+CONFIRM_MODE = os.getenv("CONFIRM_MODE", "task")
+
 
 class ToolRunner:
     def __init__(self, browser: BrowserSession, task: str,
@@ -113,9 +119,12 @@ class ToolRunner:
         self.task = task
         self.ask_user = ask_user
         self.confirm = confirm
+        self.approved_all = CONFIRM_MODE == "off"
 
     def _guard(self, name: str, args: dict) -> str | None:
         """Security layer. Returns a refusal message, or None if the action may proceed."""
+        if self.approved_all:
+            return None
         if name == "type" and not args.get("submit"):
             return None
         if name == "press_key" and args.get("key", "").lower() != "enter":
@@ -124,7 +133,10 @@ class ToolRunner:
         verdict = llm.is_destructive(self.task, f"{name} {args}", element, self.b.page.url)
         if not verdict.get("destructive"):
             return None
-        if self.confirm(verdict.get("summary", element)):
+        answer = self.confirm(verdict.get("summary", element))  # True / False / "all"
+        if answer == "all" and CONFIRM_MODE == "task":
+            self.approved_all = True
+        if answer:
             return None
         return "The user DECLINED this action. Do not retry it; choose another way or ask the user."
 
