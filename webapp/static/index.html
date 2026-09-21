@@ -146,7 +146,10 @@ const handlers = {
     $("models").textContent = `${short(ev.models.main)} · эскалация ${short(ev.models.escalation)} · воркер ${short(ev.models.worker)}`;
     const chips = $("chips"); chips.innerHTML = "";
     const examples = [];
-    if (ev.demo_url) examples.push(`Открой ${ev.demo_url} и закажи BBQ-бургер и большую картошку фри, дойди до оплаты`);
+    if (ev.demo_url) {
+      examples.push(`Открой ${ev.demo_url} и закажи BBQ-бургер и большую картошку фри, дойди до оплаты`);
+      examples.push(`Открой почту ${ev.demo_url.replace("shop.html", "mail.html")}, прочитай последние 10 писем и удали спам`);
+    }
     examples.push("Найди на hh.ru 3 удалённые вакансии AI-инженера и кратко опиши каждую");
     for (const t of examples) {
       const b = el("button", "chip", t.length > 60 ? t.slice(0, 58) + "…" : t);
