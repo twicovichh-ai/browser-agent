@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Browser Agent</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1d1f; --muted: #6e6e73; --line: #e5e3de;
+    --accent: #3b5bdb; --accent-ink: #fff; --ok: #2b8a3e; --bad: #c92a2a; --warn: #e8590c;
+    --code-bg: #f1f0ec; --switch: #862e9c; --shadow: 0 1px 2px #0000000f, 0 4px 16px #0000000a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141416; --panel: #1c1c1f; --ink: #ececf0; --muted: #9a9aa3; --line: #2c2c31;
+      --accent: #748ffc; --accent-ink: #0b0b0c; --ok: #69db7c; --bad: #ff8787; --warn: #ffa94d;
+      --code-bg: #26262b; --switch: #da77f2; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+         display: grid; grid-template-columns: minmax(340px, 420px) 1fr; gap: 12px; padding: 12px; }
+  .pane { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+          display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  header { padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 8px; }
+  header h1 { font-size: 15px; margin: 0; }
+  header .models { color: var(--muted); font-size: 12px; margin-left: auto; text-align: right; }
+  #log { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .msg { max-width: 100%; overflow-wrap: anywhere; }
+  .user { align-self: flex-end; background: var(--accent); color: var(--accent-ink); padding: 8px 12px;
+          border-radius: 14px 14px 4px 14px; max-width: 85%; white-space: pre-wrap; margin-top: 8px; }
+  .say { white-space: pre-wrap; }
+  .thought { color: var(--muted); font-style: italic; font-size: 13px; }
+  .call { font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg);
+          border-radius: 6px; padding: 4px 8px; }
+  .call b { color: var(--accent); }
+  details.result { font-size: 12.5px; color: var(--muted); margin-left: 10px; }
+  details.result summary { cursor: pointer; list-style: none; }
+  details.result summary::-webkit-details-marker { display: none; }
+  details.result.ok summary::before { content: "✓ "; color: var(--ok); }
+  details.result.bad summary { color: var(--bad); }
+  details.result.bad summary::before { content: "✗ "; }
+  details.result pre { white-space: pre-wrap; font: 11.5px ui-monospace, Menlo, monospace; background: var(--code-bg);
+                       padding: 8px; border-radius: 6px; max-height: 260px; overflow: auto; color: var(--ink); }
+  .meta { color: var(--muted); font-size: 11.5px; margin-left: 10px; }
+  .switch { color: var(--switch); font-weight: 600; font-size: 13px; }
+  .card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 4px 0; }
+  .card.ask { border-color: var(--warn); }
+  .card.confirm { border-color: var(--bad); }
+  .card.report { border-color: var(--ok); white-space: pre-wrap; }
+  .card .title { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+  .card.ask .title { color: var(--warn); } .card.confirm .title { color: var(--bad); } .card.report .title { color: var(--ok); }
+  .card .row { display: flex; gap: 6px; margin-top: 8px; }
+  .card.done { opacity: .55; }
+  .card.done .row { display: none; }
+  .usage { color: var(--muted); font: 11px ui-monospace, Menlo, monospace; white-space: pre-wrap; margin-top: 6px; }
+  .error { color: var(--bad); }
+  #status { color: var(--muted); font-size: 12px; padding: 0 14px 6px; min-height: 18px; }
+  form { border-top: 1px solid var(--line); padding: 10px; display: flex; gap: 8px; align-items: flex-end; }
+  textarea, input[type=text] { flex: 1; resize: none; font: inherit; color: var(--ink); background: var(--bg);
+             border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  textarea { min-height: 40px; max-height: 140px; }
+  button { font: inherit; border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+           background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  button.secondary { background: var(--code-bg); color: var(--ink); }
+  button.danger { background: var(--bad); color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
+  .chip { background: var(--code-bg); color: var(--ink); font-weight: 500; font-size: 12px; padding: 5px 10px; border-radius: 999px; }
+  /* browser pane */
+  .bar { padding: 8px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.live { background: var(--ok); }
+  #url { flex: 1; font: 12.5px ui-monospace, Menlo, monospace; color: var(--muted); background: var(--bg);
+         border-radius: 6px; padding: 5px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #screenWrap { flex: 1; display: flex; align-items: flex-start; justify-content: center; overflow: auto;
+                background: var(--bg); outline: none; }
+  #screenWrap:focus { box-shadow: inset 0 0 0 2px var(--accent); }
+  #screen { max-width: 100%; height: auto; display: block; cursor: pointer; user-select: none; }
+  #placeholder { color: var(--muted); margin: auto; padding: 24px; text-align: center; }
+  .hint { color: var(--muted); font-size: 12px; padding: 6px 12px; border-top: 1px solid var(--line); }
+  @media (max-width: 900px) {
+    body { grid-template-columns: 1fr; grid-template-rows: 55vh 45vh; height: auto; }
+  }
+</style>
+</head>
+<body>
+<section class="pane">
+  <header><h1>Browser Agent</h1><div class="models" id="models">подключение…</div></header>
+  <div id="log"></div>
+  <div id="chips" class="chips"></div>
+  <div id="status"></div>
+  <form id="form">
+    <textarea id="task" rows="1" placeholder="Опишите задачу для агента…" title="Enter — отправить, Shift+Enter — перенос строки"></textarea>
+    <button id="send" type="submit">Отправить</button>
+    <button id="stop" type="button" class="danger" hidden>Стоп</button>
+  </form>
+</section>
+
+<section class="pane">
+  <div class="bar"><span class="dot" id="live"></span><div id="url">—</div></div>
+  <div id="screenWrap" tabindex="0">
+    <div id="placeholder">Ожидаю картинку из браузера…</div>
+    <img id="screen" alt="Живой браузер" hidden>
+  </div>
+  <div class="hint">Кликните по картинке, чтобы управлять браузером вручную: войти в аккаунт, решить капчу. Клавиатура работает, пока окно в фокусе.</div>
+</section>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const log = $("log"), statusEl = $("status"), taskEl = $("task");
+let ws, busy = false;
+const cards = new Map();
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function add(node) {
+  const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+  log.appendChild(node);
+  if (atBottom) log.scrollTop = log.scrollHeight;
+}
+function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
+const short = (m) => (m || "").replace("claude-", "");
+
+function setBusy(b) {
+  busy = b;
+  $("send").disabled = b;
+  $("stop").hidden = !b;
+  if (!b) statusEl.textContent = "";
+}
+
+function card(kind, title, text) {
+  const c = el("div", "card " + kind);
+  c.appendChild(el("div", "title", title));
+  c.appendChild(el("div", "", text));
+  return c;
+}
+
+const handlers = {
+  ready(ev) {
+    $("models").textContent = `${short(ev.models.main)} · эскалация ${short(ev.models.escalation)} · воркер ${short(ev.models.worker)}`;
+    const chips = $("chips"); chips.innerHTML = "";
+    const examples = [];
+    if (ev.demo_url) examples.push(`Открой ${ev.demo_url} и закажи BBQ-бургер и большую картошку фри, дойди до оплаты`);
+    examples.push("Найди на hh.ru 3 удалённые вакансии AI-инженера и кратко опиши каждую");
+    for (const t of examples) {
+      const b = el("button", "chip", t.length > 60 ? t.slice(0, 58) + "…" : t);
+      b.type = "button"; b.title = t; b.onclick = () => { taskEl.value = t; taskEl.focus(); };
+      chips.appendChild(b);
+    }
+  },
+  busy(ev) { setBusy(ev.busy); },
+  user(ev) { add(el("div", "msg user", ev.text)); },
+  status(ev) { statusEl.textContent = ev.text; },
+  thought(ev) { add(el("div", "msg thought", "💭 " + ev.text)); },
+  say(ev) { add(el("div", "msg say", ev.text)); },
+  tool_call(ev) {
+    const d = el("div", "msg call");
+    d.appendChild(el("b", "", "→ " + ev.name + " "));
+    d.appendChild(document.createTextNode(ev.args));
+    add(d);
+  },
+  tool_result(ev) {
+    const det = el("details", "msg result " + (ev.ok ? "ok" : "bad"));
+    const first = (ev.text.split("\n").find((l) => l.trim()) || "").slice(0, 140);
+    det.appendChild(el("summary", "", first + (ev.ok ? `  (${ev.text.length.toLocaleString("ru")} симв.)` : "")));
+    det.appendChild(el("pre", "", ev.text));
+    add(det);
+  },
+  cost(ev) { add(el("div", "msg meta", `шаг ${ev.step} · ${short(ev.model)} · $${ev.cost.toFixed(4)}`)); },
+  model_switch(ev) { add(el("div", "msg switch", `⇅ ${short(ev.old)} → ${short(ev.new)} (${ev.reason})`)); },
+  ask(ev) {
+    const c = card("ask", "Агент спрашивает", ev.question);
+    const row = el("form", "row");
+    const inp = el("input"); inp.type = "text"; inp.placeholder = "Ваш ответ";
+    const b = el("button", "", "Ответить");
+    row.appendChild(inp); row.appendChild(b);
+    row.onsubmit = (e) => { e.preventDefault(); send({ type: "answer", id: ev.id, text: inp.value }); };
+    c.appendChild(row); cards.set(ev.id, c); add(c); inp.focus();
+  },
+  confirm(ev) {
+    const c = card("confirm", "⚠ Необратимое действие", ev.summary);
+    const row = el("div", "row");
+    const yes = el("button", "danger", "Разрешить"), no = el("button", "secondary", "Отклонить");
+    yes.onclick = () => send({ type: "confirm", id: ev.id, ok: true });
+    no.onclick = () => send({ type: "confirm", id: ev.id, ok: false });
+    row.appendChild(yes); row.appendChild(no);
+    c.appendChild(row); cards.set(ev.id, c); add(c);
+  },
+  resolved(ev) { const c = cards.get(ev.id); if (c) c.classList.add("done"); },
+  report(ev) {
+    const c = card("report", "Результат", ev.text);
+    c.appendChild(el("div", "usage", ev.usage));
+    add(c);
+  },
+  error(ev) { add(el("div", "msg error", ev.text)); },
+  viewer_error(ev) { $("url").textContent = "браузер: " + ev.text; },
+  frame(ev) {
+    const img = $("screen");
+    img.src = "data:image/jpeg;base64," + ev.data;
+    img.hidden = false; $("placeholder").hidden = true;
+    $("url").textContent = ev.url || "—";
+  },
+};
+
+function connect() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => { log.innerHTML = ""; cards.clear(); $("live").classList.add("live"); };
+  ws.onmessage = (m) => { const ev = JSON.parse(m.data); (handlers[ev.type] || (() => {}))(ev); };
+  ws.onclose = (e) => {
+    $("live").classList.remove("live");
+    $("models").textContent = e.code === 4401 ? "нет доступа" : "переподключение…";
+    if (e.code !== 4401) setTimeout(connect, 1500);
+  };
+}
+
+// ---- chat input ----
+$("form").onsubmit = (e) => {
+  e.preventDefault();
+  const text = taskEl.value.trim();
+  if (!text || busy) return;
+  send({ type: "task", text }); taskEl.value = ""; taskEl.style.height = "";
+};
+taskEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("form").requestSubmit(); }
+});
+taskEl.addEventListener("input", () => { taskEl.style.height = "auto"; taskEl.style.height = taskEl.scrollHeight + "px"; });
+$("stop").onclick = () => send({ type: "stop" });
+
+// ---- manual control of the live browser ----
+const img = $("screen"), wrap = $("screenWrap");
+function rel(e) {
+  const r = img.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+}
+img.addEventListener("click", (e) => { wrap.focus(); send({ type: "input", kind: "click", ...rel(e) }); });
+img.addEventListener("wheel", (e) => { e.preventDefault(); send({ type: "input", kind: "wheel", dy: e.deltaY, ...rel(e) }); }, { passive: false });
+wrap.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey) return;
+  e.preventDefault();
+  if (e.key.length === 1) send({ type: "input", kind: "text", text: e.key });
+  else send({ type: "input", kind: "key", key: e.key });
+});
+wrap.addEventListener("paste", (e) => {
+  const t = e.clipboardData.getData("text"); if (t) send({ type: "input", kind: "text", text: t });
+});
+
+connect();
+</script>
+</body>
+</html>

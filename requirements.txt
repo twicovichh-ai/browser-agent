@@ -1,0 +1,6 @@
+anthropic>=1.7
+playwright>=1.63
+rich>=13
+fastapi>=0.115
+uvicorn[standard]>=0.30
+mcp>=2.2

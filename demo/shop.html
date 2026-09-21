@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Бургерная «Демо»</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 860px; margin: 0 auto; padding: 16px; background: #faf7f2; color: #222; }
+  header { display: flex; justify-content: space-between; align-items: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .card { background: #fff; border-radius: 10px; padding: 12px; box-shadow: 0 1px 3px #0002; }
+  .btn { display: inline-block; background: #e85d2a; color: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; user-select: none; }
+  .ghost { background: #eee; color: #222; }
+  #overlay { position: fixed; inset: 0; background: #0007; display: flex; align-items: center; justify-content: center; }
+  #overlay > div { background: #fff; padding: 20px; border-radius: 10px; max-width: 360px; }
+  .hidden { display: none !important; }
+  input, select { padding: 6px; }
+</style>
+</head>
+<body>
+<div id="overlay" role="dialog"><div>
+  <p>Мы используем cookies, чтобы сайт работал лучше.</p>
+  <span class="btn" onclick="hide('overlay')">Понятно</span>
+</div></div>
+
+<header>
+  <h1>Бургерная «Демо»</h1>
+  <span class="btn ghost" onclick="show('cartPage')">🛒 <span id="count">0</span></span>
+</header>
+
+<input id="search" placeholder="Найти блюдо" oninput="filter(this.value)">
+
+<div id="menu">
+  <h2>Бургеры</h2>
+  <div class="grid">
+    <div class="card"><h3>Классический</h3><p>Говядина, чеддер, соус</p><b>350 ₽</b><br><span class="btn" onclick="add('Классический',350)">В корзину</span></div>
+    <div class="card"><h3>BBQ Чикен</h3><p>Курица, соус BBQ, лук</p><b>390 ₽</b><br><span class="btn" onclick="add('BBQ Чикен',390)">В корзину</span></div>
+    <div class="card"><h3>BBQ-бургер</h3><p>Говядина, бекон, соус BBQ</p><b>420 ₽</b><br><span class="btn" onclick="add('BBQ-бургер',420)">В корзину</span></div>
+    <div class="card"><h3>Двойной BBQ-бургер</h3><p>Две котлеты, соус BBQ</p><b>560 ₽</b><br><span class="btn" onclick="add('Двойной BBQ-бургер',560)">В корзину</span></div>
+  </div>
+  <h2>Закуски</h2>
+  <div class="grid">
+    <div class="card"><h3>Картофель по-деревенски</h3><b>170 ₽</b><br><span class="btn" onclick="add('Картофель по-деревенски',170)">В корзину</span></div>
+    <div class="card"><h3>Картошка фри</h3><p>Размер:
+      <select id="size"><option>Стандарт</option><option>Большая</option></select></p>
+      <b>150 ₽</b><br><span class="btn" onclick="add('Картошка фри ('+document.getElementById('size').value+')',150)">В корзину</span></div>
+    <div class="card"><h3>Наггетсы</h3><b>220 ₽</b><br><span class="btn" onclick="add('Наггетсы',220)">В корзину</span></div>
+  </div>
+</div>
+
+<div id="cartPage" class="hidden">
+  <h2>Корзина</h2>
+  <ul id="items"></ul>
+  <p>Итого: <b id="total">0</b> ₽</p>
+  <span class="btn ghost" onclick="hide('cartPage')">Вернуться в меню</span>
+  <span class="btn" onclick="show('checkout')">Оформить заказ</span>
+</div>
+
+<div id="checkout" class="hidden">
+  <h2>Оформление</h2>
+  <p><input id="addr" placeholder="Адрес доставки" value="ул. Примерная, 1, кв. 5"></p>
+  <p><label><input type="radio" name="pay" checked> Картой онлайн</label>
+     <label><input type="radio" name="pay"> Наличными курьеру</label></p>
+  <span class="btn" onclick="pay()">Оплатить <span id="payTotal"></span> ₽</span>
+  <p id="status"></p>
+</div>
+
+<script>
+  const cart = [];
+  const hide = id => document.getElementById(id).classList.add('hidden');
+  const show = id => { document.getElementById(id).classList.remove('hidden'); render(); };
+  function add(name, price) { cart.push({name, price}); render(); }
+  function render() {
+    document.getElementById('count').innerText = cart.length;
+    document.getElementById('items').innerHTML = cart.map(i => `<li>${i.name} — ${i.price} ₽</li>`).join('');
+    const t = cart.reduce((s, i) => s + i.price, 0);
+    document.getElementById('total').innerText = t;
+    document.getElementById('payTotal').innerText = t;
+  }
+  function filter(q) {
+    document.querySelectorAll('#menu .card').forEach(c =>
+      c.style.display = c.innerText.toLowerCase().includes(q.toLowerCase()) ? '' : 'none');
+  }
+  function pay() { document.getElementById('status').innerText = '✅ Заказ оплачен (демо, деньги не списаны)'; }
+</script>
+</body>
+</html>

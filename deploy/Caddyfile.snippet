@@ -1,0 +1,13 @@
+testtask.timofeylukonin.com {
+    reverse_proxy testtask_app:8080 {
+        flush_interval -1
+    }
+    encode gzip zstd
+
+    tls {$ACME_EMAIL}
+
+    log {
+        output stdout
+        format console
+    }
+}

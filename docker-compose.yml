@@ -1,0 +1,18 @@
+services:
+  testtask:
+    build: .
+    image: testtask-browser-agent
+    container_name: testtask_app
+    restart: unless-stopped
+    env_file: .env          # model key, access key, cost limit — never committed
+    volumes:
+      - ./data:/data        # Chrome profile: logins survive restarts
+    shm_size: 1gb
+    mem_limit: 1600m
+    cpus: 0.9
+    networks: [n8n_net]     # Caddy from the n8n stack proxies the domain here
+
+networks:
+  n8n_net:
+    external: true
+    name: n8n-stack_n8n_net

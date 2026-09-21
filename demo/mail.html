@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Почта «Демо» — Входящие</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #f3f4f6; color: #1f2937; }
+  .top { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 10px 20px; display: flex; gap: 16px; align-items: center; }
+  .top b { font-size: 18px; }
+  .wrap { display: grid; grid-template-columns: 180px 1fr; min-height: calc(100vh - 50px); }
+  nav { background: #fff; border-right: 1px solid #e5e7eb; padding: 12px; }
+  nav a { display: block; padding: 6px 10px; border-radius: 6px; color: inherit; text-decoration: none; }
+  nav a.active { background: #e0e7ff; font-weight: 600; }
+  main { padding: 12px 20px; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 8px; }
+  .toolbar button { padding: 6px 12px; border: 1px solid #d1d5db; background: #fff; border-radius: 6px; cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; background: #fff; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; font-size: 14px; cursor: pointer; }
+  tr.unread td { font-weight: 600; }
+  .from { width: 220px; } .date { width: 70px; color: #6b7280; text-align: right; }
+  .snip { color: #6b7280; font-weight: 400; }
+  #reader { background: #fff; padding: 16px 20px; border-radius: 8px; }
+  .hidden { display: none; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111827; color: #fff; padding: 8px 14px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="top"><b>✉ Почта «Демо»</b><input placeholder="Поиск в почте" style="flex:1;max-width:420px;padding:6px"></div>
+<div class="wrap">
+  <nav>
+    <a href="#" class="active" onclick="show('inbox');return false">Входящие <span id="cnt"></span></a>
+    <a href="#" onclick="show('spam');return false">Спам <span id="cntSpam"></span></a>
+    <a href="#" onclick="show('trash');return false">Удалённые <span id="cntTrash"></span></a>
+  </nav>
+  <main>
+    <div id="list">
+      <div class="toolbar">
+        <button onclick="bulk('trash')">🗑 Удалить</button>
+        <button onclick="bulk('spam')">⚠ Это спам!</button>
+      </div>
+      <table id="rows"></table>
+    </div>
+    <div id="reader" class="hidden"></div>
+  </main>
+</div>
+<div id="toast" class="hidden"></div>
+
+<script>
+// Fixed demo inbox. `spam` is ground truth for the eval, never shown in the UI.
+const MAILS = [
+  {id:1, from:"HR hh.ru <noreply@hh.ru>", subj:"Приглашение на собеседование: AI-разработчик", body:"Здравствуйте! Компания приглашает вас на интервью в четверг в 15:00. Подтвердите участие в личном кабинете.", date:"10:42", spam:false},
+  {id:2, from:"Casino Vulkan <bonus@vulkan-777-win.xyz>", subj:"🎰 Ваш бонус 500% ждёт! Только сегодня", body:"Забирайте 500% на первый депозит и 200 фриспинов! Переходите по ссылке и выигрывайте прямо сейчас.", date:"10:15", spam:true},
+  {id:3, from:"GitHub <noreply@github.com>", subj:"[browser-agent] New issue opened", body:"A new issue was opened in your repository: 'Snapshot misses shadow DOM inputs'.", date:"09:58", spam:false},
+  {id:4, from:"Служба безопасности Сбербанка <security@sber-bank-verify.ru>", subj:"Ваша карта заблокирована! Срочно подтвердите данные", body:"Уважаемый клиент! Ваша карта заблокирована. Для разблокировки введите номер карты и CVV по ссылке в течение 24 часов.", date:"09:30", spam:true},
+  {id:5, from:"Мама <mama.ivanova@yandex.ru>", subj:"Ужин в воскресенье", body:"Приезжайте в воскресенье к шести, я испеку пирог. Возьми с собой брата.", date:"09:02", spam:false},
+  {id:6, from:"Apple Lottery <winner@apple-prize-2026.top>", subj:"Поздравляем! Вы выиграли iPhone 17 Pro", body:"Вы выбраны победителем! Чтобы получить приз, оплатите доставку 390 ₽ по ссылке.", date:"08:47", spam:true},
+  {id:7, from:"Т-Банк <noreply@tbank.ru>", subj:"Выписка по счёту за август", body:"Выписка по вашему счёту за август готова. Посмотреть её можно в приложении Т-Банка.", date:"08:20", spam:false},
+  {id:8, from:"Похудей за 7 дней <promo@slim-fast-magic.biz>", subj:"Минус 15 кг без диет и спорта!!!", body:"Секретная капсула, о которой молчат врачи. Закажите сегодня со скидкой 90%.", date:"07:55", spam:true},
+  {id:9, from:"Алексей Смирнов <a.smirnov@company.ru>", subj:"Ревью PR по контекст-менеджменту", body:"Посмотрел PR — в целом ок, оставил пару комментариев по порогу очистки контекста.", date:"07:31", spam:false},
+  {id:10, from:"СДЭК <info@cdek.ru>", subj:"Заказ №4481-22 прибыл в пункт выдачи", body:"Ваш заказ прибыл в пункт выдачи на ул. Ленина, 5. Срок хранения — 7 дней.", date:"07:10", spam:false},
+  {id:11, from:"Рассылка Хабра <digest@habr.com>", subj:"Лучшее за неделю: агенты и MCP", body:"Подборка лучших статей недели про AI-агентов и Model Context Protocol.", date:"вчера", spam:false},
+];
+window.mailState = { folder: Object.fromEntries(MAILS.map(m => [m.id, "inbox"])), read: {} };
+const st = window.mailState;
+let view = "inbox";
+
+function render() {
+  const rows = document.getElementById("rows");
+  const items = MAILS.filter(m => st.folder[m.id] === view);
+  rows.innerHTML = items.map(m => `
+    <tr class="${st.read[m.id] ? "" : "unread"}" data-id="${m.id}">
+      <td style="width:28px"><input type="checkbox" aria-label="Выбрать письмо: ${m.subj}" data-id="${m.id}" onclick="event.stopPropagation()"></td>
+      <td class="from" onclick="openMail(${m.id})">${m.from.split(" <")[0]}</td>
+      <td onclick="openMail(${m.id})">${m.subj} <span class="snip">— ${m.body.slice(0, 50)}…</span></td>
+      <td class="date">${m.date}</td>
+    </tr>`).join("") || `<tr><td>Папка пуста</td></tr>`;
+  const n = f => MAILS.filter(m => st.folder[m.id] === f).length;
+  document.getElementById("cnt").textContent = n("inbox");
+  document.getElementById("cntSpam").textContent = n("spam");
+  document.getElementById("cntTrash").textContent = n("trash");
+}
+function show(f) {
+  view = f;
+  document.querySelectorAll("nav a").forEach((a, i) => a.classList.toggle("active", ["inbox","spam","trash"][i] === f));
+  document.getElementById("reader").classList.add("hidden");
+  document.getElementById("list").classList.remove("hidden");
+  render();
+}
+function openMail(id) {
+  const m = MAILS.find(x => x.id === id); st.read[id] = true;
+  const r = document.getElementById("reader");
+  r.innerHTML = `<button onclick="show(view)">← Назад</button>
+    <button onclick="move(${id},'trash')">🗑 Удалить</button>
+    <button onclick="move(${id},'spam')">⚠ Это спам!</button>
+    <h2>${m.subj}</h2><p><b>От:</b> ${m.from}</p><p>${m.body}</p>`;
+  r.classList.remove("hidden"); document.getElementById("list").classList.add("hidden");
+}
+function move(id, f) { st.folder[id] = f; toast(f === "spam" ? "Помечено как спам" : "Письмо удалено"); show(view); }
+function bulk(f) {
+  const ids = [...document.querySelectorAll("#rows input:checked")].map(c => +c.dataset.id);
+  if (!ids.length) { toast("Сначала выберите письма"); return; }
+  ids.forEach(id => st.folder[id] = f);
+  toast(`${f === "spam" ? "В спам" : "Удалено"}: ${ids.length}`); render();
+}
+function toast(t) { const e = document.getElementById("toast"); e.textContent = t; e.classList.remove("hidden"); setTimeout(() => e.classList.add("hidden"), 1500); }
+render();
+</script>
+</body>
+</html>

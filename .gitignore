@@ -1,0 +1,9 @@
+.venv/
+.profile/
+.profile-cdp/
+.profile-web/
+__pycache__/
+.env
+data/
+.claude/
+.DS_Store
